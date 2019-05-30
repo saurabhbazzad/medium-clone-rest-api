@@ -1,7 +1,9 @@
 
 const {Users}=require('../models')
+const {createJwt}=require('../utils/jwt')
 
 async function createUser(userOpts){
+    console.log(userOpts)
     if(!userOpts.username){
         throw new Error('Did not supply username')
     }
@@ -19,7 +21,19 @@ async function createUser(userOpts){
         throw new Error('Error creating User')
     }
 
-    return user
+    const createdUser=await Users.findOne({
+        attributes:['email','username','bio','image'],
+        where:{
+            username:user.username
+        }
+    })
+
+    const token=await createJwt(createdUser.get())
+
+    return {
+        ...createdUser.get(),
+        token
+    }
 }
 
 async function verifyUser(userOpts){
@@ -30,7 +44,8 @@ async function verifyUser(userOpts){
         throw new Error('Did not supply password')
     }
 
-    const user=Users.findOne({
+    const user= await Users.findOne({
+        attributes:[email,username,bio,image,password],
         where:{
             email:userOpts.email
         }
@@ -44,9 +59,15 @@ async function verifyUser(userOpts){
         throw new Error('Password did not match')
     }
 
-    return user
-}
+    const token=await createJwt(user.get())
+    const userJson={
+        ...user.get(),
+        token
+    }
 
+    delete userJson.password
+    return userJson
+}
 
 module.exports={
     createUser,
